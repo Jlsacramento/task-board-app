@@ -1,101 +1,143 @@
-import Image from "next/image";
+'use client'
+import React, { useState } from 'react'
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd'
+import { Card, CardContent } from '@/components/ui/card'
+import { Check, Edit2 } from 'lucide-react'
+import { Dialog, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+
+interface Task {
+  id: string
+  content: string
+}
+
+interface Column {
+  id: string
+  title: string
+  tasks: Task[]
+}
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const [columns, setColumns] = useState<Column[]>([
+    { id: 'todo', title: "TO DO", tasks: [] },
+    { id: 'inProgress', title: "IN PROGRESS", tasks: [] },
+    { id: 'toReview', title: "TO REVIEW", tasks: [] },
+    { id: 'done', title: "DONE", tasks: [] },
+  ]),
+    [editingTask, setEditingTask] = useState<string | null>(null),
+    [editContent, setEditContent] = useState<string>(''),
+    [content, setContent] = useState<string>('')
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+  const onDragEnd = (result: any) => {
+    const { source, destination } = result
+    if (!destination) return
+
+    const sourceColIndex = columns.findIndex(col => col.id === source.droppableId),
+      destinationColIndex = columns.findIndex(col => col.id === destination.droppableId),
+      sourceCol = columns[sourceColIndex],
+      destinationCol = columns[destinationColIndex]
+
+    const newColumns = [...columns],
+      [movedTask] = sourceCol.tasks.splice(source.index, 1)
+    destinationCol.tasks.splice(destination.index, 0, movedTask)
+
+    setColumns(newColumns)
+
+    return
+  }
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    const newTask: Task = {
+      id: `task-${Date.now}`,
+      content
+    }
+    const newColumns = [...columns]
+    newColumns[0].tasks.push(newTask)
+    setColumns(newColumns)
+
+    return
+  }
+
+  const startEditing = (taskId: string, content: string) => {
+    setEditingTask(taskId)
+    setEditContent(content)
+
+    return
+  }
+
+  const saveEdit = () => {
+    const newColumns = columns.map(column => ({
+      ...column,
+      tasks: column.tasks.map(task => task.id === editingTask ? { ...task, content: editContent } : task)
+    }))
+    setColumns(newColumns)
+    setEditingTask(null)
+
+    return
+  }
+
+  return (
+    <main className="md:container m-auto p-6">
+      <header>
+        <h1 className="font-bold mb-2">Task Board App</h1>
+        <Dialog>
+          <DialogTrigger className="bg-stone-900 text-white p-2 rounded-md">
+            + Adicionar Tarefa
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Criar Tarefa</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleSubmit} className='flex flex-col gap-2'>
+              <label className='text-sm'>Descreva a tarefa...</label>
+              <textarea name="content" className='border p-2 rounded-md' onChange={(e) => setContent(e.target.value)}></textarea>
+              <DialogFooter>
+                <DialogClose asChild>
+                  <button type='submit' className="bg-stone-900 text-white p-2 rounded-md">Salvar Tarefa</button>
+                </DialogClose>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </header>
+      <DragDropContext onDragEnd={onDragEnd}>
+        <section className="grid grid-cols-4 gap-4 mt-4">
+          {columns.map(column => (
+            <div key={column.id} className="bg-gray-100 p-2 rounded-md h-[100dvh]">
+              <h2 className="font-bold text-gray-700 mb-2">{column.title}</h2>
+              <Droppable droppableId={column.id}>
+                {(provided) => (
+                  <div {...provided.droppableProps} ref={provided.innerRef} className="h-[100%]">
+                    {column.tasks.map((task, index) => (
+                      <Draggable key={task.id} draggableId={task.id} index={index}>
+                        {(provided) => (
+                          <Card ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} className={column.id === 'done' ? 'bg-green-300' : 'bg-white'}>
+                            <CardContent className='p-4 flex justify-between text-sm'>
+                              {editingTask === task.id ? (
+                                <input value={editContent} onChange={(e) => setEditContent(e.target.value)} className='mr-2 border rounded-md p-2' />
+                              ) : (<span>{task.content}</span>)}
+                              {editingTask === task.id ? (
+                                <button onClick={saveEdit}>
+                                  <Check className='h-4 w-4' />
+                                </button>
+                              ) : (
+                                <button onClick={() => startEditing(task.id, task.content)}>
+                                  <Edit2 className='h-4 w-4' />
+                                </button>
+                              )}
+                            </CardContent>
+                          </Card>
+                        )}
+                      </Draggable>
+                    ))}
+                    {provided.placeholder}
+                  </div>
+                )}
+              </Droppable>
+            </div>
+          ))}
+        </section>
+      </DragDropContext>
+    </main>
   );
 }
